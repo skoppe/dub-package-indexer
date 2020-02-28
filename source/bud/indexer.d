@@ -201,15 +201,6 @@ struct Index {
     index[p.name] = indexData;
     storeResolution(resData);
   }
-  void store(RecursiveDependencies deps) {
-    import std.file : write, mkdirRecurse;
-    import std.path : dirName;
-    import std.path : buildPath;
-    auto path = buildPath(this.path,getPackageDir(deps));
-    mkdirRecurse(path);
-    auto filename = buildPath(path, deps.name ~ ".deps");
-    write(filename, deps.data.toPrettyString());
-  }
   string[] knownPackages() {
     return index.objectNoRef.keys;
   }
@@ -240,11 +231,9 @@ unittest {
   }
   import std.stdio;
   writeln("temp index at ", index.path);
-  // index.loadIndex(Git(), "git@github.com:skoppe/dub-packages-index.git");
   mkdirRecurse(index.path);
   index.syncFolder("wasm");
   index.storeIndex();
-  index.storeRecursiveDependencies();
   index.isAtLatestVersion(PackageMeta("spasm","0.2.0-beta.5")).shouldBeTrue;
   readText(buildPath(index.path, "index.json")).shouldEqual(indexContent);
   readText(buildPath(index.path, "sp/ms/spasm.deps")).shouldEqual(spasmDeps);
@@ -306,51 +295,6 @@ auto upload(ref Index index, string[] packages, string authkey, string authemail
         throw new Exception("KV store failed "~rs.responseBody.to!string);
       }
     });
-}
-
-struct RecursiveDependencies {
-  string name;
-  JSONValue data;
-}
-
-void storeRecursiveDependencies(ref Index index) {
-  import std.algorithm : each;
-  index.knownPackages.each!(p => index.store(calcRecursiveDependencies(index, p)));
-}
-
-RecursiveDependencies calcRecursiveDependencies(ref Index index, string packageName) {
-  import std.array : Appender, array;
-  import std.algorithm : each, map;
-  JSONValue result = parseJSON(`{}`);
-  Appender!(string[]) todo;
-  todo.put(packageName);
-  while (todo.data.length > 0) {
-    auto current = todo.data[$-1];
-    todo.shrinkTo(todo.data.length - 1);
-    if (current in result)
-      continue;
-    auto info = index.loadPackage(current);
-    JSONValue pack;
-    pack["versions"] = JSONValue(info["versions"].array.map!(minimizeVersion).array);
-    result[current] = pack;
-    info["versions"].array.each!((versionInfo){
-        if (auto deps = "dependencies" in versionInfo) {
-          foreach(string key, JSONValue dep; (*deps).object)
-            if (key !in result)
-              todo.put(key);
-        }
-        if (auto configs = "configurations" in versionInfo) {
-          (*configs).array.each!((config){
-              if (auto deps = "dependencies" in config) {
-                foreach(string key, JSONValue dep; (*deps).object)
-                  if (key !in result)
-                    todo.put(key);
-              }
-            });
-        }
-      });
-  }
-  return RecursiveDependencies(packageName, result);
 }
 
 alias minimizeForIndex = minimize!minimizeVersionReference;
