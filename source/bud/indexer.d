@@ -115,7 +115,11 @@ struct GitRepo {
     auto result = executeShell("git add .", null, Config.none, size_t.max, path);
     if (result.status != 0)
       throw new Exception("git add failed", result.output);
+    executeShell("git config --local user.name dub-packages-indexer", null, Config.none, size_t.max, path);
+    executeShell("git config --local user.email dub-packages-indexer@bytecraft.nl", null, Config.none, size_t.max, path);
     result = executeShell("git commit -am 'update index'", null, Config.none, size_t.max, path);
+    if (result.status != 0)
+      throw new Exception("git commit failed", result.output);
     return !result.output.canFind("nothing to commit");
   }
   void push() {
