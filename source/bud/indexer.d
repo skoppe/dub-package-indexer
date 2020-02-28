@@ -118,7 +118,7 @@ struct GitRepo {
     executeShell("git config --local user.name dub-packages-indexer", null, Config.none, size_t.max, path);
     executeShell("git config --local user.email dub-packages-indexer@bytecraft.nl", null, Config.none, size_t.max, path);
     result = executeShell("git commit -am 'update index'", null, Config.none, size_t.max, path);
-    if (canFind("nothing to commit"))
+    if (result.output.canFind("nothing to commit"))
       return false;
     if (result.status != 0)
       throw new Exception("git commit failed", result.output);
