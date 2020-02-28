@@ -22,10 +22,11 @@ jobs:
           LATEST=$(curl --silent "https://api.github.com/repos/skoppe/dub-packages-indexer/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
           wget https://github.com/skoppe/dub-packages-indexer/releases/download/$LATEST/dub-packages-indexer-linux.zip
           unzip dub-packages-indexer-linux.zip
+          chmod +x dub-packages-indexer
 
       - name: run
         env:
           INDEXER_SSH: "${{ secrets.INDEXER_SSH }}"
           INDEXER_AUTHKEY: "${{ secrets.INDEXER_AUTHKEY }}"
           INDEXER_AUTHEMAIL: "${{ secrets.INDEXER_AUTHEMAIL }}"
-        run: dub-packages-indexer -- --fetch --upload
+        run: ./dub-packages-indexer -- --fetch --upload
