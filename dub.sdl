@@ -1,0 +1,19 @@
+name "dub-packages-indexer"
+description "A minimal D application."
+authors "Sebastiaan Koppe"
+copyright "Copyright © 2020, Sebastiaan Koppe"
+license "proprietary"
+dependency "dini" version="~>2.0.0"
+dependency "requests" version="~>1.0.14"
+configuration "executable" {
+	targetType "executable"
+}
+configuration "unittest" {
+	dependency "unit-threaded" version=">=0.0.0"
+	targetType "executable"
+	mainSourceFile "test/ut/runner.d"
+	dflags "-J$PACKAGE_DIR/test/resources"
+	sourcePaths "source" "test"
+	excludedSourceFiles "source/app.d"
+	importPaths "source" "test"
+}
