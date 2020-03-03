@@ -29,4 +29,5 @@ jobs:
           INDEXER_SSH: "${{ secrets.INDEXER_SSH }}"
           INDEXER_AUTHKEY: "${{ secrets.INDEXER_AUTHKEY }}"
           INDEXER_AUTHEMAIL: "${{ secrets.INDEXER_AUTHEMAIL }}"
-        run: ./dub-packages-indexer -- --fetch --upload
+          INDEXER_AZURESEARCH: "${{ secrets.INDEXER_AZURESEARCH }}"
+        run: ./dub-packages-indexer -- --fetch --upload --searchindex

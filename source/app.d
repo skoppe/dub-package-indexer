@@ -11,12 +11,20 @@ bool shouldUpload(string[] args) {
   return args.canFind("--upload");
 }
 
+bool shouldSearchIndex(string[] args) {
+  return args.canFind("--searchindex");
+}
+
 string parseAuthKey(string[] args) {
   return args.parseString("authkey");
 }
 
 string parseAuthEmail(string[] args) {
   return args.parseString("authemail");
+}
+
+string parseAzureSearchKey(string[] args) {
+  return args.parseString("azuresearch");
 }
 
 string parseString(string[] args, string key) {
@@ -47,9 +55,9 @@ auto parseCredentials(string[] args) {
   if (exists("creds.ini")) {
     import dini;
     auto ini = Ini.Parse("creds.ini");
-    return tuple!("key","email")(ini["cloudflare"].getKey("key"),ini["cloudflare"].getKey("email"));
+    return tuple!("key","email","azureSearchKey")(ini["cloudflare"].getKey("key"),ini["cloudflare"].getKey("email"),ini["azure"].getKey("key"));
   }
-  return tuple!("key","email")(args.parseAuthKey, args.parseAuthEmail);
+  return tuple!("key","email","azureSearchKey")(args.parseAuthKey, args.parseAuthEmail, args.parseAzureSearchKey);
 }
 
 auto storeSSHKey(string value) {
@@ -92,10 +100,11 @@ void main(string[] args)
 {
   bool fetch = args.shouldFetch();
   bool upload = args.shouldUpload();
+  bool searchIndex = args.shouldSearchIndex();
   auto creds = args.parseCredentials();
 
-  if (!fetch && !upload) {
-    throw new Exception("Requires either --fetch or --upload");
+  if (!fetch && !upload && !searchIndex) {
+    throw new Exception("Requires either --fetch, --upload, --searchindex");
   }
   auto index = tempIndex();
   scope(exit) {
@@ -122,6 +131,16 @@ void main(string[] args)
     } catch (Exception e) {
       import std.stdio;
       writeln("Upload aborted ", e.message, e.info);
+      return;
+    }
+  }
+
+  if (searchIndex) {
+    try {
+      updated.azureSearch(creds.azureSearchKey);
+    } catch (Exception e) {
+      import std.stdio;
+      writeln("Search index aborted ", e.message, e.info);
       return;
     }
   }

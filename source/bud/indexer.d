@@ -270,6 +270,39 @@ auto syncFolder(ref Index index, string query = "") {
   return updated.data;
 }
 
+JSONValue getAzureSearchValue(JSONValue info) {
+  auto latestVersion = info["versions"].array[$-1];
+  JSONValue value;
+  value["@search.action"] = "upload";
+  value["id"] = info["id"];
+  value["categories"] = info["categories"];
+  value["dateAdded"] = info["dateAdded"].str ~ "Z";
+  value["name"] = info["name"];
+  value["readme"] = latestVersion["readme"];
+  value["description"] = latestVersion["description"];
+  return value;
+}
+
+auto azureSearch(string[] packages, string apikey) {
+  import requests;
+  import std.algorithm : each;
+  import std.conv :to;
+  packages.each!((p){
+      auto url = "https://dub-packages-search.search.windows.net/indexes/packages/docs/index?api-version=2019-05-06";
+      auto rq = Request();
+      auto info = fetchInfo(PackageMeta(p));
+      writefln("Uploading %s to azure search service", p);
+      JSONValue data;
+      JSONValue value = [JSONValue(getAzureSearchValue(info))];
+      data["value"] = value;
+      rq.addHeaders(["api-key": apikey]);
+      auto rs = rq.post(url, data.toString(), "application/json");
+      if (rs.code != 200) {
+        throw new Exception("Azure search indexer failed "~rs.responseBody.to!string);
+      }
+    });
+}
+
 auto upload(ref Index index, string[] packages, string authkey, string authemail) {
   import requests;
   import std.range : chunks;
