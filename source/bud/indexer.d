@@ -169,7 +169,9 @@ struct Index {
     if (index.isNull)
       return false;
     if (auto p = meta.name in index) {
-      return (*p)["versions"].array[$-1].str == meta.ver;
+      if ((*p)["versions"].array[$-1].type == JSONType.string)
+        return false;
+      return (*p)["versions"].array[$-1]["version"].str == meta.ver;
     }
     return false;
   }
@@ -339,12 +341,15 @@ alias minimizeForResolution = minimize!minimizeVersion;
 unittest {
   import unit_threaded;
   auto info = parseJSON(`{"categories": [],"dateAdded": "2018-03-24T01:49:55","documentationURL": "","id": "5ab5a0b38aa9923f251d843c","name": "_","owner": "56d00917748de384562e132d","repository": {"kind": "github","owner": "wilzbach","project": "d-underscore"},"versions": [{"authors": ["seb"],"commitID": "c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","copyright": "Copyright © 2018, seb","date": "2018-03-31T16:24:12Z","description": "TBA","license": "proprietary","name": "_","packageDescriptionFile": "dub.sdl","readme": "","targetType": "library","version": "~master"}]}`);
-  info.minimizeForIndex.toString.shouldEqual(`{"categories":[],"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","dateAdded":"2018-03-24T01:49:55","description":"TBA","documentationURL":"","id":"5ab5a0b38aa9923f251d843c","name":"_","owner":"56d00917748de384562e132d","repository":{"kind":"github","owner":"wilzbach","project":"d-underscore"},"versions":["~master"]}`);
-  info.minimizeForResolution.toString.shouldEqual(`{"categories":[],"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","dateAdded":"2018-03-24T01:49:55","description":"TBA","documentationURL":"","id":"5ab5a0b38aa9923f251d843c","name":"_","owner":"56d00917748de384562e132d","repository":{"kind":"github","owner":"wilzbach","project":"d-underscore"},"versions":[{"name":"_","version":"~master"}]}`);
+  info.minimizeForIndex.toString.shouldEqual(`{"categories":[],"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","dateAdded":"2018-03-24T01:49:55","description":"TBA","documentationURL":"","id":"5ab5a0b38aa9923f251d843c","name":"_","owner":"56d00917748de384562e132d","repository":{"kind":"github","owner":"wilzbach","project":"d-underscore"},"versions":[{"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","version":"~master"}]}`);
+  info.minimizeForResolution.toString.shouldEqual(`{"categories":[],"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","dateAdded":"2018-03-24T01:49:55","description":"TBA","documentationURL":"","id":"5ab5a0b38aa9923f251d843c","name":"_","owner":"56d00917748de384562e132d","repository":{"kind":"github","owner":"wilzbach","project":"d-underscore"},"versions":[{"commitID":"c3dfff1c665955b24ed5bfa60ab9617b2f19bd6d","name":"_","version":"~master"}]}`);
 }
 
 JSONValue minimizeVersionReference(JSONValue info) {
-  return info["version"];
+  JSONValue ver;
+  ver["version"] = info["version"];
+  ver["commitID"] = info["commitID"];
+  return ver;
 }
 
 JSONValue minimize(alias versionMinimizer)(JSONValue info) {
@@ -398,6 +403,8 @@ JSONValue minimizeVersion(JSONValue info) {
     } else
       min["configurations"] = info["configurations"].array.map!(minimizeConfiguration).array;
   }
+  if (auto commit = "commitID" in info)
+    min["commitID"] = *commit;
   if (auto name = "name" in info)
     min["name"] = *name;
   if (auto ver = "version" in info)
@@ -412,5 +419,5 @@ JSONValue minimizeVersion(JSONValue info) {
 
 unittest {
   import unit_threaded;
-  parseJSON(`{"authors": ["Sebastiaan Koppe"],"commitID": "2cac40e64abde1e9b07a22131165893cf4b62300","configurations": [{"dflags": ["-betterC"],"name": "library","subConfigurations": {"stdx-allocator": "wasm"},"targetType": "library"},{"dependencies": {"unit-threaded": ">=0.0.0"},"importPaths": ["tests"],"name": "unittest","targetName": "ut","targetType": "library"}],"copyright": "Copyright © 2018, Sebastiaan Koppe","date": "2019-08-14T21:08:22Z","dependencies": {"optional": "~>0.16.0","stdx-allocator": ">=3.1.0-beta.2 <3.2.0-0"},"description": "A framework for writing single page applications","name": "spasm","subPackages": [{"copyright": "Copyright © 2018, Sebastiaan Koppe","dependencies": {"asdf": "~>0.3.0","sdlang-d": "~>0.10.4"},"license": "MIT","name": "bootstrap-webpack","path": "bootstrap-webpack"},{"authors": ["Sebastiaan Koppe"],"configurations": [{"dependencies": {"unit-threaded": ">=0.0.0"},"name": "unittest"}],"copyright": "Copyright © 2018, Sebastiaan Koppe","dependencies": {"asdf": "~>0.3.0"},"license": "MIT","name": "webidl"}],"version": "0.2.0-beta.5"}`).minimizeVersion().toString().shouldEqual(`{"configurations":[{"name":"library"},{"dependencies":{"unit-threaded":">=0.0.0"},"name":"unittest"}],"dependencies":{"optional":"~>0.16.0","stdx-allocator":">=3.1.0-beta.2 <3.2.0-0"},"name":"spasm","subPackages":[{"dependencies":{"asdf":"~>0.3.0","sdlang-d":"~>0.10.4"},"name":"bootstrap-webpack"},{"configurations":[{"dependencies":{"unit-threaded":">=0.0.0"},"name":"unittest"}],"dependencies":{"asdf":"~>0.3.0"},"name":"webidl"}],"version":"0.2.0-beta.5"}`);
+  parseJSON(`{"authors": ["Sebastiaan Koppe"],"commitID": "2cac40e64abde1e9b07a22131165893cf4b62300","configurations": [{"dflags": ["-betterC"],"name": "library","subConfigurations": {"stdx-allocator": "wasm"},"targetType": "library"},{"dependencies": {"unit-threaded": ">=0.0.0"},"importPaths": ["tests"],"name": "unittest","targetName": "ut","targetType": "library"}],"copyright": "Copyright © 2018, Sebastiaan Koppe","date": "2019-08-14T21:08:22Z","dependencies": {"optional": "~>0.16.0","stdx-allocator": ">=3.1.0-beta.2 <3.2.0-0"},"description": "A framework for writing single page applications","name": "spasm","subPackages": [{"copyright": "Copyright © 2018, Sebastiaan Koppe","dependencies": {"asdf": "~>0.3.0","sdlang-d": "~>0.10.4"},"license": "MIT","name": "bootstrap-webpack","path": "bootstrap-webpack"},{"authors": ["Sebastiaan Koppe"],"configurations": [{"dependencies": {"unit-threaded": ">=0.0.0"},"name": "unittest"}],"copyright": "Copyright © 2018, Sebastiaan Koppe","dependencies": {"asdf": "~>0.3.0"},"license": "MIT","name": "webidl"}],"version": "0.2.0-beta.5"}`).minimizeVersion().toString().shouldEqual(`{"commitID":"2cac40e64abde1e9b07a22131165893cf4b62300","configurations":[{"name":"library"},{"dependencies":{"unit-threaded":">=0.0.0"},"name":"unittest"}],"dependencies":{"optional":"~>0.16.0","stdx-allocator":">=3.1.0-beta.2 <3.2.0-0"},"name":"spasm","subPackages":[{"dependencies":{"asdf":"~>0.3.0","sdlang-d":"~>0.10.4"},"name":"bootstrap-webpack"},{"configurations":[{"dependencies":{"unit-threaded":">=0.0.0"},"name":"unittest"}],"dependencies":{"asdf":"~>0.3.0"},"name":"webidl"}],"version":"0.2.0-beta.5"}`);
 }
